@@ -183,10 +183,10 @@ function Dashboard({ user, section, onSectionChange, onLogout }) {
       <header className="clinic-header">
         <Brand />
         <nav className="clinic-nav" aria-label="Navegação principal">
-          <button className={section === 'agenda' ? 'active' : ''} onClick={() => onSectionChange('agenda')}>▣ <span>Agenda</span></button>
-          <button className={section === 'tutores' ? 'active' : ''} onClick={() => onSectionChange('tutores')}>♙ <span>Tutores</span></button>
-          <button className={section === 'animais' ? 'active' : ''} onClick={() => onSectionChange('animais')}>♡ <span>Animais</span></button>
-          {user.perfil === 'VET' && <button className={section === 'prontuario' ? 'active' : ''} onClick={() => onSectionChange('prontuario')}>▤ <span>Prontuário</span></button>}
+          <button className={section === 'agenda' ? 'active' : ''} onClick={() => onSectionChange('agenda')}>Agenda</button>
+          <button className={section === 'tutores' ? 'active' : ''} onClick={() => onSectionChange('tutores')}>Tutores</button>
+          <button className={section === 'animais' ? 'active' : ''} onClick={() => onSectionChange('animais')}>Animais</button>
+          {user.perfil === 'VET' && <button className={section === 'prontuario' ? 'active' : ''} onClick={() => onSectionChange('prontuario')}>Prontuário</button>}
         </nav>
         <div className="profile">
           <span className="profile-copy"><strong>{user.nome}</strong><small>{roleLabel(user.perfil)} · CRMV-SP 42.816</small></span>
@@ -310,6 +310,8 @@ function Schedule({ user, onNotify, refreshKey, canOpenRecord, onOpenRecord }) {
   const [vets, setVets] = useState([]);
   const [form, setForm] = useState({ animal_id: '', veterinario_id: '', data_hora: '', tipo: 'Consulta' });
   const [error, setError] = useState('');
+  const availableSlot = findAvailableSlot(appointments);
+  const scheduleRows = getScheduleRows(appointments);
 
   function load() { request(`/api/agenda?data=${date}`).then(setAppointments).catch((error) => setError(error.message)); }
   useEffect(() => { load(); }, [date, refreshKey]);
@@ -348,11 +350,12 @@ function Schedule({ user, onNotify, refreshKey, canOpenRecord, onOpenRecord }) {
     {error && <p className="error-message">{error}</p>}
     <div className="schedule-grid">
       <section className="day-card">
-        <div className="day-card-heading"><div><h2>Manhã · 08:00 às 12:00</h2><p>{user?.nome || 'Equipe VetCare'} · sala 02</p></div><span>{appointments.length} consultas · 1 horário livre</span></div>
+        <div className="day-card-heading"><div><h2>Manhã · 08:00 às 12:00</h2><p>{user?.nome || 'Equipe VetCare'} · sala 02</p></div><span>{appointments.length} consultas · {availableSlot ? '1 horário livre' : 'sem horários livres'}</span></div>
         <div className="day-appointments">
           {appointments.length === 0 && <EmptyState text="Nenhuma consulta para esta data." />}
-          {appointments.map((item) => <ScheduleRow key={item.id} item={item} canOpenRecord={canOpenRecord} onOpenRecord={onOpenRecord} onCancel={cancel} />)}
-          <div className="free-slot"><time>10:00</time><div><strong>Horário disponível</strong><small>{user?.nome || 'Dra. Helena Martins'} · 30 min livres para agendamento</small></div><span>＋ Livre</span></div>
+          {scheduleRows.map((row) => row.type === 'free'
+            ? <div className="free-slot" key={`free-${row.time}`}><time>{row.time}</time><div><strong>Horário disponível</strong><small>{user?.nome || 'Dra. Helena Martins'} · 30 min livres para agendamento</small></div><span>＋ Livre</span></div>
+            : <ScheduleRow key={row.item.id} item={row.item} canOpenRecord={canOpenRecord} onOpenRecord={onOpenRecord} onCancel={cancel} />)}
         </div>
         <div className="afternoon-note">◷ &nbsp; Tarde · 14:00 às 18:00 · sem consultas agendadas</div>
       </section>
@@ -448,6 +451,17 @@ function formatTime(value) { return value ? new Date(value).toLocaleTimeString('
 function formatDate(value) { return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); }
 function formatLongDate(value) { return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }); }
 function formatShortDate(value) { return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+function findAvailableSlot(appointments) {
+  const slots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'];
+  const occupied = new Set(appointments.map((appointment) => formatTime(appointment.data_hora)));
+  return slots.find((slot) => !occupied.has(slot)) || '';
+}
+function getScheduleRows(appointments) {
+  const rows = appointments.map((item) => ({ type: 'appointment', time: formatTime(item.data_hora), item }));
+  const availableSlot = findAvailableSlot(appointments);
+  if (availableSlot) rows.push({ type: 'free', time: availableSlot });
+  return rows.sort((left, right) => left.time.localeCompare(right.time));
+}
 function shiftDate(value, amount, setDate) {
   const next = new Date(`${value}T12:00:00`);
   next.setDate(next.getDate() + amount);
