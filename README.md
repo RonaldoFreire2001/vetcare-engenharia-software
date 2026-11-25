@@ -32,3 +32,21 @@ npm install
 cp .env.example .env
 # Preencha SUPABASE_URL e SUPABASE_KEY no arquivo .env
 node src/server.js
+```
+
+### Passo 2: Frontend
+Em outro terminal:
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+O frontend será disponibilizado pelo Vite e consumirá a API em `VITE_API_URL` (por padrão,
+`http://localhost:3001`). A primeira etapa inclui:
+- tela de login com persistência do token JWT;
+- visão geral com consultas do dia;
+- cadastro e listagem de tutores e animais;
+- consulta, criação e cancelamento de agendamentos;
+- navegação responsiva para os perfis `ADMIN`, `RECEP` e `VET`.
